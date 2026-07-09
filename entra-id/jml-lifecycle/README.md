@@ -1,1 +1,216 @@
+# Lab 01: Manual Joiner-Mover-Leaver (JML) Operations via Microsoft Graph PowerShell
 
+## Objective
+
+Practice manual Joiner-Mover-Leaver (JML) identity lifecycle operations using the Microsoft Graph PowerShell SDK against a Microsoft Entra ID tenant. The goal was to understand the underlying mechanics that Entra ID Governance's Lifecycle Workflows automate, before working with the fully licensed Governance workflow engine.
+
+## Environment
+
+- **Tenant**: Microsoft Entra ID tenant (Azure account)
+- **Tools**: Microsoft Graph PowerShell SDK
+- **PowerShell version**: 7.6.3 (latest)
+- **Auth method**: Delegated, device code flow
+- **Scopes used**: `User.ReadWrite.All`, `Group.ReadWrite.All`, `Directory.ReadWrite.All`
+
+## Part 1: Connecting to Microsoft Graph
+
+Connected using device code authentication after running into an interactive/WAM auth failure (see Troubleshooting section below).
+
+```powershell
+Connect-MgGraph -Scopes "User.ReadWrite.All", "Group.ReadWrite.All", "Directory.ReadWrite.All" `
+    -TenantId "<tenant-id>" `
+    -UseDeviceAuthentication
+```
+
+Verified the session:
+
+```powershell
+Get-MgContext
+```
+
+Confirmed `TenantId`, `Scopes`, and `AuthType` populated correctly before proceeding.
+
+## Part 2: Joiner — Provisioning a New User
+
+Created a test user representing a new hire:
+
+```powershell
+$PasswordProfile = @{
+    Password = "TempP@ssw0rd123!"
+    ForceChangePasswordNextSignIn = $true
+}
+
+$newUser = New-MgUser -DisplayName "Test Joiner" `
+    -UserPrincipalName "test.joiner@<tenant-domain>.onmicrosoft.com" `
+    -AccountEnabled `
+    -MailNickname "testjoiner" `
+    -PasswordProfile $PasswordProfile `
+    -Department "Sales"
+```
+
+Created two test security groups to simulate department-based access:
+
+```powershell
+$salesGroup = New-MgGroup -DisplayName "Test Sales Team" -MailEnabled:$false -MailNickname "testsales" -SecurityEnabled:$true
+
+$marketingGroup = New-MgGroup -DisplayName "Test Marketing Team" -MailEnabled:$false -MailNickname "testmarketing" -SecurityEnabled:$true
+```
+
+Added the new user to the Sales group (initial access grant):
+
+```powershell
+New-MgGroupMember -GroupId $salesGroup.Id -DirectoryObjectId $newUser.Id
+```
+
+**Verification:**
+
+```powershell
+Get-MgGroupMember -GroupId $salesGroup.Id
+```
+
+Confirmed the user's object ID appeared as a member of Test Sales Team.
+
+## Part 3: Mover — Changing Department and Access
+
+Simulated an internal transfer from Sales to Marketing:
+
+```powershell
+# Remove from old group
+Remove-MgGroupMemberByRef -GroupId $salesGroup.Id -DirectoryObjectId $newUser.Id
+
+# Add to new group
+New-MgGroupMember -GroupId $marketingGroup.Id -DirectoryObjectId $newUser.Id
+
+# Update department attribute to reflect the move
+Update-MgUser -UserId $newUser.Id -Department "Marketing"
+```
+
+**Verification:**
+
+```powershell
+Get-MgGroupMember -GroupId $salesGroup.Id       # Empty — confirms removal
+Get-MgGroupMember -GroupId $marketingGroup.Id   # Shows user — confirms addition
+Get-MgUser -UserId $newUser.Id -Property DisplayName, Department | Format-List
+```
+
+Result: `Department: Marketing` confirmed, group membership correctly reflected the transfer.
+
+## Part 4: Leaver — Offboarding
+
+Simulated an employee departure using a phased approach (disable → strip access → optional delete):
+
+**Step 1 — Disable sign-in:**
+
+```powershell
+Update-MgUser -UserId $newUser.Id -AccountEnabled:$false
+```
+
+**Step 2 — Remove all group memberships:**
+
+```powershell
+Get-MgUserMemberOf -UserId $newUser.Id | ForEach-Object {
+    Remove-MgGroupMemberByRef -GroupId $_.Id -DirectoryObjectId $newUser.Id
+}
+```
+
+**Verification:**
+
+```powershell
+Get-MgUser -UserId $newUser.Id -Property DisplayName, AccountEnabled | Format-List
+Get-MgUserMemberOf -UserId $newUser.Id
+```
+
+Result: `AccountEnabled: False`, no group memberships returned — access fully revoked while account preserved for audit/reference.
+
+**Step 3 — Full deletion (optional, tested separately):**
+
+```powershell
+Remove-MgUser -UserId $newUser.Id
+```
+
+This moves the account into Entra ID's soft-delete state (30-day recovery window) rather than permanently destroying it immediately.
+
+## Key Takeaways
+
+- Manually performing JML operations makes clear exactly what Entra ID Governance's Lifecycle Workflows automate under the hood: attribute updates, group membership changes, and account enable/disable state, all triggered by conditions like `employeeHireDate` and `employeeLeaveDateTime`.
+- Object references in Graph PowerShell are handled via the object's immutable `Id` (GUID), not its display name. Display names are human-readable labels only; they are not accepted as identifiers by cmdlets expecting `-UserId` or `-GroupId`.
+- Entra ID's soft-delete behavior for deleted users provides a 30-day recovery window, which proved directly useful during this lab (see Troubleshooting Appendix).
+
+---
+
+# Troubleshooting Appendix
+
+Documenting the issues hit during this lab, since diagnosing and resolving these was arguably the more valuable part of the exercise.
+
+## Issue 1: WAM Authentication Failure
+
+**Symptom:**
+
+```
+Azure.Identity.AuthenticationFailedException: InteractiveBrowserCredential authentication failed
+MsalServiceException: WAM Error, Error Code: 0, IncorrectConfiguration
+```
+
+**Diagnosis:** Windows Web Account Manager (WAM), the native broker used by `Connect-MgGraph` for interactive sign-in, failed to authenticate — this was a local Windows/client configuration issue, not an Entra ID account problem.
+
+**Resolution:** Bypassed WAM entirely by switching to device code authentication:
+
+```powershell
+Connect-MgGraph -Scopes "User.Read" -UseDeviceAuthentication
+```
+
+After using device code auth successfully, a subsequent attempt at a direct/interactive connection (`Connect-MgGraph` without `-UseDeviceAuthentication`) succeeded — suggesting the initial WAM failure may have been a transient issue rather than a persistent configuration problem.
+
+## Issue 2: Invalid Tenant Identifier
+
+**Symptom:**
+
+```
+AADSTS900023: Specified tenant identifier 'your-tenant-id' is neither a valid DNS name, nor a valid external domain.
+```
+
+**Diagnosis:** A placeholder string (`"your-tenant-id"`) was passed literally into the `-TenantId` parameter instead of the tenant's actual GUID.
+
+**Resolution:** Retrieved the correct Tenant ID (GUID) from the Entra admin center under **Identity > Overview**, and substituted it into the command.
+
+## Issue 3: Insufficient Privileges on Graph Query
+
+**Symptom:**
+
+```
+Get-MgUser_List: Insufficient privileges to complete the operation.
+Status: 403 (Forbidden)
+ErrorCode: Authorization_RequestDenied
+```
+
+**Diagnosis:** The session had connected successfully, but only with the `User.Read` scope (read own profile only) — insufficient for listing all users in the tenant.
+
+**Resolution:** Reconnected with a broader delegated scope:
+
+```powershell
+Connect-MgGraph -Scopes "User.Read.All" -TenantId "<tenant-id>" -UseDeviceAuthentication
+```
+
+**Lesson:** A successful connection does not guarantee sufficient permissions for a given operation — `Get-MgContext` should be checked to confirm which scopes were actually granted during consent, since Graph PowerShell scopes are least-privilege by design and are not pre-authorized.
+
+## Issue 4: Accidental Permanent-Looking Deletion
+
+**Symptom:** Ran `Remove-MgUser` on the test account as the final optional step of the Leaver process, then later needed the account back for further testing.
+
+**Diagnosis:** `Remove-MgUser` does not immediately destroy an Entra ID object — it moves it into a soft-delete state, recoverable for 30 days.
+
+**Resolution:**
+
+```powershell
+Restore-MgDirectoryDeletedItem -DirectoryObjectId "<object-id>"
+```
+
+**Verification:**
+
+```powershell
+Get-MgUser -UserId "<object-id>" -Property DisplayName, AccountEnabled | Format-List
+```
+
+Confirmed the user object was restored with all prior attributes intact (including its pre-deletion `AccountEnabled: False` state).
+
+**Lesson:** Understanding Entra ID's soft-delete/recovery behavior is directly applicable to real-world offboarding processes — accidental deletions during automation or manual admin work are recoverable within the retention window, which is an important safety net to know how to use under pressure.
