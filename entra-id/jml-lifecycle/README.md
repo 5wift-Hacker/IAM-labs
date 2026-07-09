@@ -161,19 +161,7 @@ Connect-MgGraph -Scopes "User.Read" -UseDeviceAuthentication
 
 After using device code auth successfully, a subsequent attempt at a direct/interactive connection (`Connect-MgGraph` without `-UseDeviceAuthentication`) succeeded — suggesting the initial WAM failure may have been a transient issue rather than a persistent configuration problem.
 
-## Issue 2: Invalid Tenant Identifier
-
-**Symptom:**
-
-```
-AADSTS900023: Specified tenant identifier 'your-tenant-id' is neither a valid DNS name, nor a valid external domain.
-```
-
-**Diagnosis:** A placeholder string (`"your-tenant-id"`) was passed literally into the `-TenantId` parameter instead of the tenant's actual GUID.
-
-**Resolution:** Retrieved the correct Tenant ID (GUID) from the Entra admin center under **Identity > Overview**, and substituted it into the command.
-
-## Issue 3: Insufficient Privileges on Graph Query
+## Issue 2: Insufficient Privileges on Graph Query
 
 **Symptom:**
 
@@ -193,9 +181,9 @@ Connect-MgGraph -Scopes "User.Read.All" -TenantId "<tenant-id>" -UseDeviceAuthen
 
 **Lesson:** A successful connection does not guarantee sufficient permissions for a given operation — `Get-MgContext` should be checked to confirm which scopes were actually granted during consent, since Graph PowerShell scopes are least-privilege by design and are not pre-authorized.
 
-## Issue 4: Accidental Permanent-Looking Deletion
+## Issue 3: Accidental Permanent-Looking Deletion
 
-**Symptom:** Ran `Remove-MgUser` on the test account as the final optional step of the Leaver process, then later needed the account back for further testing.
+**Symptom:** Ran `Remove-MgUser` on the test account as the final optional step of the Leaver process, then later tested recovery of the account.
 
 **Diagnosis:** `Remove-MgUser` does not immediately destroy an Entra ID object — it moves it into a soft-delete state, recoverable for 30 days.
 
@@ -213,4 +201,4 @@ Get-MgUser -UserId "<object-id>" -Property DisplayName, AccountEnabled | Format-
 
 Confirmed the user object was restored with all prior attributes intact (including its pre-deletion `AccountEnabled: False` state).
 
-**Lesson:** Understanding Entra ID's soft-delete/recovery behavior is directly applicable to real-world offboarding processes — accidental deletions during automation or manual admin work are recoverable within the retention window, which is an important safety net to know how to use under pressure.
+**Lesson:** Understanding Entra ID's soft-delete/recovery behavior is directly applicable to real-world offboarding processes. Accidental deletions during automation or manual admin work are recoverable within the retention window, which is an important safety net to know how to use under pressure.
