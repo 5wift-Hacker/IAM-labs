@@ -1,10 +1,8 @@
-# IAM Labs
-
-Hands-on identity and access management labs, built while transitioning from iOS development into an IAM career path (Analyst → Architect track).
+# Hands-On IAM Labs
 
 ## Why this repo exists
 
-I'm a self-taught iOS developer moving into Identity and Access Management. Rather than just studying for certifications, I wanted a portfolio that shows applied, hands-on work — real tenants, real scripts, real problems solved. This repo documents that work as it grows.
+I'm an aspiring Identity and Access Management engineer. Rather than solely studying for certifications, I wanted to provide a portfolio that shows applied, hands-on work with tenants and scripts that conduct realistic actions and solve realistic problems within the IdP's themselves. This repo documents that work as it grows.
 
 ## What's inside
 
@@ -18,8 +16,9 @@ I'm a self-taught iOS developer moving into Identity and Access Management. Rath
 
 ## Tools & Environment
 
-- Microsoft Graph PowerShell SDK
-- Personal Azure / Entra ID tenant
+- Microsoft Graph SDK
+- PowerShell
+- Personal Entra ID tenant / Azure
 - (Planned) Okta free-tier developer org
 
 ## Background & Certifications
