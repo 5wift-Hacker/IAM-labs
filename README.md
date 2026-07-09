@@ -15,7 +15,7 @@ I'm a self-taught iOS developer moving into Identity and Access Management. Rath
 | [Access Levels](./entra-id/access-levels) | Microsoft Entra ID | Role/permission assignment, access level configuration |
 | _(more coming)_ | Okta | — |
 
-Each lab folder contains its own README with: the scenario, what was configured, scripts/commands used, and what I learned.
+// Each lab folder contains its own README with: the scenario, what was configured, scripts/commands used, and what I learned.
 
 ## Tools & Environment
 
