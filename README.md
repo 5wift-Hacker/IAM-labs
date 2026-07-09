@@ -1,7 +1,5 @@
 # Hands-On IAM Labs
 
-## Why this repo exists
-
 I'm an aspiring Identity and Access Management engineer. Rather than solely studying for certifications, I wanted to provide a portfolio that shows applied, hands-on work with tenants and scripts that conduct realistic actions and solve realistic problems within the IdP's themselves. This repo documents that work as it grows.
 
 ## What's inside
@@ -12,7 +10,7 @@ I'm an aspiring Identity and Access Management engineer. Rather than solely stud
 | [Password Management / Access Levels](./entra-id/password-management) | Microsoft Entra ID | Password resets/changes via Graph PowerShell / Role/permission assignment, access level configuration
 | _(more coming)_ | Okta | — |
 
-<!-- Each lab folder contains its own README with: the scenario, what was configured, scripts/commands used, and what I learned. -->
+Each lab folder contains its own README with: the scenario, what was configured, scripts/commands used, and what I learned.
 
 ## Tools & Environment
 
