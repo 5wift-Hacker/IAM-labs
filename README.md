@@ -10,7 +10,7 @@ I'm a self-taught iOS developer moving into Identity and Access Management. Rath
 
 | Lab | Platform | Topics Covered |
 |---|---|---|
-| [JML Lifecycle](./entra-id/jml-lifecycle) | Microsoft Entra ID | Joiner-Mover-Leaver automation via Microsoft Graph PowerShell SDK |
+| [JML Lifecycle](./entra-id/jml-lifecycle) | Microsoft Entra ID | Joiner-Mover-Leaver via Microsoft Graph PowerShell SDK |
 | [Password Management](./entra-id/password-management) | Microsoft Entra ID | Password resets/changes via Graph PowerShell |
 | [Access Levels](./entra-id/access-levels) | Microsoft Entra ID | Role/permission assignment, access level configuration |
 | _(more coming)_ | Okta | — |
