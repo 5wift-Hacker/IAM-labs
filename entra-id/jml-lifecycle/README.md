@@ -181,17 +181,17 @@ Connect-MgGraph -Scopes "User.Read.All" -TenantId "<tenant-id>" -UseDeviceAuthen
 
 **Lesson:** A successful connection does not guarantee sufficient permissions for a given operation — `Get-MgContext` should be checked to confirm which scopes were actually granted during consent, since Graph PowerShell scopes are least-privilege by design and are not pre-authorized.
 
-## Issue 3: Accidental Permanent-Looking Deletion
+## Issue 3: Permanent-Looking Deletion
 
 **Symptom:** Ran `Remove-MgUser` on the test account as the final optional step of the Leaver process, then later tested recovery of the account.
 
-**Diagnosis:** `Remove-MgUser` does not immediately destroy an Entra ID object — it moves it into a soft-delete state, recoverable for 30 days.
+**Diagnosis:** `Remove-MgUser` does not immediately destroy an Entra ID object, it moves it into a soft-delete state, recoverable for 30 days.
 
 **Resolution:**
 
     Restore-MgDirectoryDeletedItem -DirectoryObjectId "<object-id>"
 
-Here, `<object-id>` is the deleted user's Object ID (GUID) — in this lab, `$newUser.Id`, since the variable was still live in the same PowerShell session:
+Here, `<object-id>` is the deleted user's Object ID (GUID). In this lab, `$newUser.Id`, since the variable was still live in the same PowerShell session:
 
     Restore-MgDirectoryDeletedItem -DirectoryObjectId $newUser.Id
 
@@ -201,13 +201,13 @@ Here, `<object-id>` is the deleted user's Object ID (GUID) — in this lab, `$ne
 
 Confirmed the user object was restored with all prior attributes intact (including its pre-deletion `AccountEnabled: False` state).
 
-**Lesson:** Understanding Entra ID's soft-delete/recovery behavior is directly applicable to real-world offboarding processes. Accidental deletions during automation or manual admin work are recoverable within the retention window, which is an important safety net to know how to use under pressure — but only if you still have a way to reference the object's ID (see Issue 4).
+**Lesson:** Understanding Entra ID's soft-delete/recovery behavior is directly applicable to real-world offboarding processes. Accidental deletions during automation or manual admin work are recoverable within the retention window, which is an important safety net to know how to use under pressure, but only if you still have a way to reference the object's ID (see Issue 4).
 
 ## Issue 4: Losing the Object Reference After Closing the Session
 
 **Symptom:** Simulated a more realistic scenario by closing the PowerShell session after deleting the test user, then reopening a new session to attempt recovery.
 
-**Diagnosis:** `$newUser` and its `.Id` property only exist in memory for the lifetime of the session. Once PowerShell is closed (or the variable is overwritten), that reference is gone — even though the underlying GUID itself hasn't changed and the object is still recoverable in Entra ID's soft-delete state.
+**Diagnosis:** `$newUser` and its `.Id` property only exist in memory for the lifetime of the session. Once PowerShell is closed (or the variable is overwritten), that reference is gone, even though the underlying GUID itself hasn't changed and the object is still recoverable in Entra ID's soft-delete state.
 
 Attempting the same recovery command in the new session failed immediately, since the variable no longer existed:
 
@@ -224,4 +224,4 @@ This returns the deleted user object, including its `Id`, which can then be fed 
     $deletedUser = Get-MgDirectoryDeletedItemAsUser -All | Where-Object DisplayName -eq "Test Joiner"
     Restore-MgDirectoryDeletedItem -DirectoryObjectId $deletedUser.Id
 
-**Lesson:** Session-scoped variables are not a durable record of an object's identity — they're a convenience that disappears the moment the session ends. In a real offboarding/recovery scenario, relying on `$newUser.Id` staying available is fragile; the more resilient habit is to log or export critical Object IDs (e.g., to a CSV or ticketing system) at the time of action, rather than assuming they'll still be sitting in memory later. If that habit isn't in place, recovery is still possible, but it takes an extra lookup step and requires knowing at least one other identifying attribute (display name, UPN, etc.) to filter on.
+**Lesson:** Session-scoped variables are not a durable record of an object's identity, but a convenience that disappears the moment the session ends. In a real offboarding/recovery scenario, relying on `$newUser.Id` staying available is fragile; the more resilient habit is to log or export critical Object IDs (e.g., to a CSV or ticketing system) at the time of action, rather than assuming they'll still be sitting in memory later. If that habit isn't in place, recovery is still possible, but it takes an extra lookup step and requires knowing at least one other identifying attribute (display name, UPN, etc.) to filter on.
