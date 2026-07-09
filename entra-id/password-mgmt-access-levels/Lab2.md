@@ -53,7 +53,7 @@ Both confirmed Test Joiner 2's membership in Test Trainers Team.
 
 ## Part 2: Admin-Initiated Password Reset
 
-Practiced resetting a user's password as an administrator — a common Tier 1/helpdesk IAM task.
+Practiced resetting a user's password as an administrator, which is a common Tier 1/helpdesk IAM task.
 
 ```powershell
 $NewPasswordProfile = @{
@@ -66,7 +66,7 @@ Update-MgUser -UserId $newUser2.Id -PasswordProfile $NewPasswordProfile
 
 **Initial attempt failed** with a 403 `Authorization_RequestDenied` error, which led to the RBAC investigation covered in the Troubleshooting Appendix below. After reconnecting with the `Directory.AccessAsUser.All` scope added, the reset succeeded.
 
-**Note on verification:** Microsoft Graph does not return plaintext passwords once set — not even to an admin — since passwords are hashed immediately on Microsoft's end. The only confirmation of a successful reset is the absence of an error from `Update-MgUser`, or an actual sign-in test using the new credential.
+**Note on verification:** Microsoft Graph does not return plaintext passwords once set (not even to an admin) since passwords are hashed immediately on Microsoft's end. The only confirmation of a successful reset is the absence of an error from `Update-MgUser`, or an actual sign-in test using the new credential.
 
 ## Part 3: Mover — Trainers to Marketing
 
@@ -122,7 +122,9 @@ Following the password-reset failure, investigated how directory roles (RBAC) si
 | Graph API scope/permission | What a *token* is allowed to request | `User.ReadWrite.All` |
 | Directory role (RBAC) | What an *account* is actually authorized to do | Global Administrator, User Administrator, Helpdesk Administrator |
 
-Both layers must align for a privileged operation (like resetting another user's password) to succeed — a valid scope alone is not sufficient if the account's assigned role doesn't include that right.
+Both layers must align for a privileged operation (like resetting another user's password) to succeed. A valid scope alone is not sufficient if the account's assigned role doesn't include that right.
+
+**Scope note:** this two-layer model describes *delegated* access, which is what this lab uses throughout (a signed-in user driving the session). In *app-only* (client credential) scenarios, there's no signed-in user, so the model collapses to a single layer. Access is governed by admin-consented application permissions, plus optionally RBAC for Applications, rather than a combination of user role + token scope.
 
 **Checked own role assignment:**
 
@@ -137,12 +139,12 @@ Returned a directory role object Id. Resolved the role name/description:
 Get-MgDirectoryRole -DirectoryRoleId "<role-id>" | Select-Object DisplayName, Description | Format-List
 ```
 
-Confirmed the account holds **Global Administrator** — expected, since this account is the tenant creator's default admin account.
+Confirmed the account holds **Global Administrator** as expected, since this account is the tenant creator's (my) default admin account.
 
 ## Key Takeaways
 
-- Password resets performed via Graph PowerShell never expose the plaintext password back through the API — the only plaintext copy that ever exists is the one typed locally when setting it. This mirrors real-world practice: temporary passwords must be communicated out-of-band at creation/reset time.
-- Entra ID enforces permissions through **two independent layers** — Graph API scope consent and directory role (RBAC) assignment. A 403 error can originate from either layer, and troubleshooting requires checking both rather than assuming a re-consent alone will fix it.
+- Password resets performed via Graph PowerShell never expose the plaintext password back through the API. The only plaintext copy that ever exists is the one typed locally when setting it. This mirrors real-world practice: temporary passwords must be communicated out-of-band at creation/reset time.
+- Entra ID enforces permissions through **two independent layers**. Graph API scope consent and directory role (RBAC) assignment. A 403 error can originate from either layer, and troubleshooting requires checking both rather than assuming a re-consent alone will fix it.
 - Requesting broad, high-privilege scopes (e.g. `Directory.AccessAsUser.All`) by default is a least-privilege violation. The better practice is to scope each session to only what that specific lab or task requires, and disconnect (`Disconnect-MgGraph`) when finished.
 - Cross-verifying object relationships from both directions (e.g. checking group membership via the group, and separately via the user's `MemberOf`) is a useful habit for confirming changes actually took effect, especially in a system with eventually-consistent directory writes.
 
@@ -159,7 +161,7 @@ New-MgUser_CreateExpanded: Another object with the same value for property userP
 Status: 400 (BadRequest)
 ```
 
-**Diagnosis:** An attempt to create a second test user reused the same `-UserPrincipalName` value from Lab 01's `Test Joiner`, despite giving the new user a different `-DisplayName`. UserPrincipalName must be unique tenant-wide, independent of DisplayName — Entra ID does not treat these two attributes as linked.
+**Diagnosis:** An attempt to create a second test user reused the same `-UserPrincipalName` value from Lab 01's `Test Joiner`, despite giving the new user a different `-DisplayName`. UserPrincipalName must be unique tenant-wide, independent of DisplayName. Entra ID does not treat these two attributes as linked.
 
 **Resolution:** Created the new user with both a distinct DisplayName (`Test Joiner 2`) and a distinct UserPrincipalName (`test.joiner2@<tenant-domain>.onmicrosoft.com`).
 
@@ -184,9 +186,9 @@ Connect-MgGraph -Scopes "User.ReadWrite.All", "Group.ReadWrite.All", "Directory.
 
 Password reset succeeded after reconnecting with the added scope.
 
-**Lesson:** This surfaced the broader RBAC-vs-scope distinction documented in Part 5 above — a good reminder that Graph 403 errors require checking both the token's consented scopes and the account's assigned directory role, not just one or the other.
+**Lesson:** The scope alone didn't do the work, it just made the *permission available for consent*. The reset actually succeeded because this account already holds the **Global Administrator** directory role (confirmed in Part 5), which is one of the roles authorized to reset other users' passwords. If the signed-in account had instead held a lower-privilege role with no password-reset rights, adding `Directory.AccessAsUser.All` to the scope list would have made no difference — the 403 would have persisted, just now clearly attributable to the RBAC layer rather than the scope layer. This is the practical version of the two-layer distinction from Part 5. Scope consent opens the *door* the token is allowed to try, but the directory role decides whether that specific account is allowed to *walk through it*.
 
-## Issue 3: Stale Variables After PowerShell Session Refresh
+## Issue 3: Lost Variables After PowerShell Session Refresh Again
 
 **Symptom:**
 
@@ -203,4 +205,4 @@ $marketingGroup = Get-MgGroup -Filter "displayName eq 'Test Marketing Team'"
 $newUser2 = Get-MgUser -Filter "displayName eq 'Test Joiner 2'"
 ```
 
-**Lesson:** Reinforces that PowerShell variables are session-scoped and disposable — they are a convenience layer over the top of persistent Entra ID object IDs, not a source of truth. Any object needed across sessions should be re-queried by a stable, known identifier (UPN, DisplayName, or Id) rather than assumed to still be held in a variable.
+**Lesson:** Reinforces that PowerShell variables are session-scoped and disposable. They are a convenience layer over the top of persistent Entra ID object IDs, not a source of truth. Any object needed across sessions should be re-queried by a stable, known identifier (UPN, DisplayName, or Id) rather than assumed to still be held in a variable.
