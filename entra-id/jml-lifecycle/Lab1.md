@@ -132,7 +132,7 @@ This moves the account into Entra ID's soft-delete state (30-day recovery window
 
 ## Key Takeaways
 
-- Manually performing JML operations makes clear exactly what Entra ID Governance's Lifecycle Workflows automate under the hood: attribute updates, group membership changes, and account enable/disable state, all triggered by conditions like `employeeHireDate` and `employeeLeaveDateTime`.
+- Manually performing JML operations makes clear exactly what Entra ID Governance's Lifecycle Workflows automate under the hood: attribute updates, group membership changes, and account enable/disable state.
 - Object references in Graph PowerShell are handled via the object's immutable `Id` (GUID), not its display name. Display names are human-readable labels only; they are not accepted as identifiers by cmdlets expecting `-UserId` or `-GroupId`.
 - Entra ID's soft-delete behavior for deleted users provides a 30-day recovery window, which proved directly useful during this lab (see Troubleshooting Appendix).
 
