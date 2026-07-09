@@ -6,7 +6,7 @@ I'm an aspiring Identity and Access Management engineer. Rather than solely stud
 
 | Lab | Platform | Topics Covered |
 |---|---|---|
-| [JML Lifecycle](./entra-id/jml-lifecycle) | Microsoft Entra ID | Joiner-Mover-Leaver via Microsoft Graph PowerShell SDK |
+| [JML Lifecycle](./entra-id/jml-lifecycle/README.md) | Microsoft Entra ID | Joiner-Mover-Leaver via Microsoft Graph PowerShell SDK |
 | [Password Management / Access Levels](./entra-id/password-management) | Microsoft Entra ID | Password resets/changes via Graph PowerShell / Role/permission assignment, access level configuration
 | _(more coming)_ | Okta | — |
 
